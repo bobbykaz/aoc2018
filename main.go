@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
-
-	"github.com/bobbykaz/aoc2018/d1"
+	"github.com/bobbykaz/aoc2018/d2"
 )
 
 func main() {
-	fmt.Println(d1.Part2())
+	d2.Part2()
 }

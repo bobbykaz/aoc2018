@@ -50,8 +50,8 @@ func Part2() int {
 		intSet[freq] = true
 	}
 
-	fmt.Println("Final freq: %d", freq)
-	return freq
+	fmt.Println("dead code")
+	panic(nil)
 }
 
 func processLine(line string) (int, error) {
