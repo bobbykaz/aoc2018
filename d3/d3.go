@@ -8,7 +8,7 @@ import (
 	"github.com/bobbykaz/aoc2018/utilities"
 )
 
-func Part1() {
+func Part1_2() {
 	fmt.Println("Parsing...")
 	input := utilities.ReadFileIntoLines("input/input3.txt")
 	fabric := make([][]int, 1000)

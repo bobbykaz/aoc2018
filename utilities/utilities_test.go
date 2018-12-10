@@ -20,6 +20,42 @@ func TestIntsToString(t *testing.T) {
 	}
 }
 
+func TestParseDateStyleString(t *testing.T) {
+	e1, e2, e3 := 1999, 11, 10
+	a1, a2, a3, aerr := ParseDateStyleString("    1999-11-10    ")
+	if e1 != a1 {
+		t.Fatalf("failed: actual: %d, expected %d", e1, a1)
+	}
+
+	if e2 != a2 {
+		t.Fatalf("failed: actual: %d, expected %d", e2, a2)
+	}
+
+	if e3 != a3 {
+		t.Fatalf("failed: actual: %d, expected %d", e3, a3)
+	}
+
+	if aerr != nil {
+		t.Fatalf("failed: should have nil err")
+	}
+}
+
+func TestParseTimeStyleString(t *testing.T) {
+	e1, e2 := 0, 1000
+	a1, a2, aerr := ParseTimeStyleString("    000:1000    ")
+	if e1 != a1 {
+		t.Fatalf("failed: actual: %d, expected %d", e1, a1)
+	}
+
+	if e2 != a2 {
+		t.Fatalf("failed: actual: %d, expected %d", e2, a2)
+	}
+
+	if aerr != nil {
+		t.Fatalf("failed: should have nil err")
+	}
+}
+
 func testEq(a, b []int) bool {
 
 	if a == nil && b == nil {

@@ -39,3 +39,50 @@ func IntsToString(input []int) string {
 
 	return s
 }
+
+//ParseDateStyleString expects string to be equivalent to "2000-10-20". Trims spaces.
+func ParseDateStyleString(date string) (int, int, int, error) {
+	trimmed := strings.TrimSpace(date)
+	parts := strings.Split(trimmed, "-")
+	if len(parts) != 3 {
+		return -1, -1, -1, fmt.Errorf("expected 3 parts to date %s", trimmed)
+	}
+
+	y, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return -1, -1, -1, err
+	}
+
+	m, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return -1, -1, -1, err
+	}
+
+	d, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return -1, -1, -1, err
+	}
+
+	return y, m, d, nil
+}
+
+//ParseTimeStyleString expects string to be equivalent to "00:11". Trims spaces.
+func ParseTimeStyleString(time string) (int, int, error) {
+	trimmed := strings.TrimSpace(time)
+	parts := strings.Split(trimmed, ":")
+	if len(parts) != 2 {
+		return -1, -1, fmt.Errorf("expected 2 parts to date %s", trimmed)
+	}
+
+	h, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return -1, -1, err
+	}
+
+	m, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return -1, -1, err
+	}
+
+	return h, m, nil
+}
