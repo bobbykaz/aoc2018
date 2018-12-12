@@ -1,7 +1,7 @@
 package main
 
-import "github.com/bobbykaz/aoc2018/d5"
+import "github.com/bobbykaz/aoc2018/d6"
 
 func main() {
-	d5.Solve()
+	d6.Part1()
 }
