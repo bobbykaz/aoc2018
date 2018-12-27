@@ -15,13 +15,17 @@ func Part1() {
 		parent, child := process(input[i])
 		pN, prs := nodeMap[parent]
 		if !prs {
-			pN = &node{NodeID: parent, Children: make([]*node, 0), Parents: make([]*node, 0), Done: false}
+			pN = &node{NodeID: parent, Time: 0, Children: make([]*node, 0), Parents: make([]*node, 0), Done: false}
+			char := parent[0]
+			pN.Time = (int)(char-'A') + 1 + 60
 			nodeMap[parent] = pN
 		}
 
 		cN, prs := nodeMap[child]
 		if !prs {
-			cN = &node{NodeID: child, Children: make([]*node, 0), Parents: make([]*node, 0), Done: false}
+			cN = &node{NodeID: child, Time: 0, Children: make([]*node, 0), Parents: make([]*node, 0), Done: false}
+			char := child[0]
+			cN.Time = (int)(char-'A') + 1 + 60
 			nodeMap[child] = cN
 		}
 
@@ -30,6 +34,7 @@ func Part1() {
 	}
 	fmt.Println("nodes made")
 	nodesReady := make([]string, 0)
+	nodesInProgress := make([](*node), 0)
 	nodesDone := make([]string, 0)
 	for _, v := range nodeMap {
 		if v.canBeDone() {
@@ -37,10 +42,38 @@ func Part1() {
 		}
 	}
 	sort.Strings(nodesReady)
-	for len(nodesReady) > 0 {
-		node := nodeMap[nodesReady[0]]
+
+	//Ready to start processing
+	// 1. fill workers to capacity if possible
+	// 2. complete one node.
+	// 3. check if any other nodes are ready to be processed
+	// 4. add them to Ready and sort
+	totalTime := 0
+	workers := 5
+
+	for len(nodesReady) > 0 || len(nodesInProgress) > 0 {
+
+		//Fill workers
+		for len(nodesInProgress) < workers && len(nodesReady) > 0 {
+			node := nodeMap[nodesReady[0]]
+			nodesInProgress = append(nodesInProgress, node)
+			nodesReady = nodesReady[1:]
+		}
+
+		sort.Slice(nodesInProgress, func(i, j int) bool { return lessNodeInProgress(nodesInProgress[i], nodesInProgress[j]) })
+
+		//Process one node
+		node, remaining := dequeueNode(nodesInProgress)
+		nodesInProgress = remaining
+		for i := 0; i < len(nodesInProgress); i++ {
+			nodesInProgress[i].Time = nodesInProgress[i].Time - node.Time
+		}
+		totalTime += node.Time
+		node.Time = 0
 		node.Done = true
-		nodesReady = nodesReady[1:]
+		fmt.Println("Completed node", node.NodeID, "after time", totalTime)
+		//
+
 		for i := 0; i < len(node.Children); i++ {
 			if node.Children[i].canBeDone() {
 				nodesReady = append(nodesReady, node.Children[i].NodeID)
@@ -49,44 +82,12 @@ func Part1() {
 		sort.Strings(nodesReady)
 		nodesDone = append(nodesDone, node.NodeID)
 	}
+
 	fmt.Println("Order:", nodesDone)
-	stepTimes := make([]int, 0)
-	for i := 0; i < len(nodesDone); i++ {
-		name := nodesDone[i]
-		char := name[0]
-		stepTime := (int)(char-'A') + 1 + 60
-		stepTimes = append(stepTimes, stepTime)
-	}
+}
 
-	fmt.Println("times:", stepTimes)
-
-	totalTime := 0
-	workers := 5
-	inprogress := make([]int, 0)
-	for i := 0; i < workers; i++ {
-		num, times := dequeue(stepTimes)
-		stepTimes = times
-		inprogress = append(inprogress, num)
-	}
-
-	for len(inprogress) > 0 {
-		sort.Ints(inprogress)
-		done, remaining := dequeue(inprogress)
-		inprogress = remaining
-		for i := 0; i < len(inprogress); i++ {
-			inprogress[i] = inprogress[i] - done
-		}
-
-		totalTime += done
-
-		if len(stepTimes) > 0 {
-			next, times := dequeue(stepTimes)
-			stepTimes = times
-			inprogress = append(inprogress, next)
-		}
-	}
-
-	fmt.Println("Done in:", totalTime)
+func dequeueNode(arr []*node) (*node, []*node) {
+	return arr[0], arr[1:]
 }
 
 func dequeue(arr []int) (int, []int) {
@@ -95,6 +96,7 @@ func dequeue(arr []int) (int, []int) {
 
 type node struct {
 	NodeID   string
+	Time     int
 	Done     bool
 	Parents  [](*node)
 	Children [](*node)
@@ -139,4 +141,12 @@ func traverseSumMetadata(n *node) int {
 	}
 
 	return -1
+}
+
+func lessNodeInProgress(a, b *node) bool {
+	if a.Time == b.Time {
+		return a.NodeID < b.NodeID
+	}
+
+	return a.Time < b.Time
 }
