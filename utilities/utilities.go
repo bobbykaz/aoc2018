@@ -40,6 +40,27 @@ func IntsToString(input []int) string {
 	return s
 }
 
+//ParseCoord parses an X,Y style coordinate and also removes the beginning and end strings provided, and trims spaces everywhere
+func ParseCoord(coordStr, beginning, separator, end string) (int, int, error) {
+	trimmed := strings.TrimSpace(coordStr)
+	trimmed = strings.TrimPrefix(trimmed, beginning)
+	trimmed = strings.TrimSpace(trimmed)
+	trimmed = strings.TrimSuffix(trimmed, end)
+	trimmed = strings.TrimSpace(trimmed)
+	parts := strings.Split(trimmed, separator)
+	x, err := strconv.Atoi(strings.TrimSpace(parts[0]))
+	if err != nil {
+		return -1, -1, err
+	}
+
+	y, err := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return -1, -1, err
+	}
+
+	return x, y, nil
+}
+
 //ParseDateStyleString expects string to be equivalent to "2000-10-20". Trims spaces.
 func ParseDateStyleString(date string) (int, int, int, error) {
 	trimmed := strings.TrimSpace(date)
