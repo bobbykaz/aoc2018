@@ -1,7 +1,9 @@
 package main
 
-import "github.com/bobbykaz/aoc2018/d6"
+import (
+	"github.com/bobbykaz/aoc2018/d15"
+)
 
 func main() {
-	d6.Part1()
+	d15.Part1()
 }
