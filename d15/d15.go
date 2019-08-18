@@ -2,14 +2,16 @@ package d15
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/bobbykaz/aoc2018/utilities"
 )
 
 type gameboard struct {
-	grid   [][]int
-	actors []actor
-	rounds int
+	grid            [][]int
+	actors          []actor
+	rounds          int
+	incompleteRound bool
 }
 
 type actor struct {
@@ -34,20 +36,34 @@ type pos struct {
 
 func Part1() {
 	fmt.Println("Day 15")
-	input := utilities.ReadFileIntoLines("input/sample15.txt")
-	game := gameboard{grid: make([][]int, len(input)), actors: make([]actor, 0), rounds: 0}
-	initGame(&game, input)
-	game.print()
-	game.round()
-	game.print()
-	game.round()
-	game.print()
+	playGame("input/input15.txt", true, 19)
+}
+
+func playGame(filename string, printBoard bool, elfPower int) int {
+	input := utilities.ReadFileIntoLines(filename)
+	game := gameboard{grid: make([][]int, len(input)), actors: make([]actor, 0), rounds: 0, incompleteRound: false}
+	initGame(&game, input, elfPower)
+	for !game.gameDone() {
+		if printBoard {
+			game.print()
+		}
+		game.round()
+	}
+
+	fmt.Println("==========================")
+	if game.incompleteRound {
+		game.rounds--
+	}
+	if printBoard {
+		game.print()
+	}
+	return game.gameStats()
 }
 
 const _Wall = -100
 const _OpenSpace = -1
 
-func initGame(game *gameboard, input []string) {
+func initGame(game *gameboard, input []string, elfpower int) {
 	nextID := 0
 	elves := 0
 	goblins := 0
@@ -63,7 +79,7 @@ func initGame(game *gameboard, input []string) {
 				game.grid[i][j] = _OpenSpace
 				break
 			case 'E':
-				newActor := actor{HP: 200, Team: "E", Atp: 3, ID: nextID, Col: j, Row: i, Dead: false}
+				newActor := actor{HP: 200, Team: "E", Atp: elfpower, ID: nextID, Col: j, Row: i, Dead: false}
 				elves++
 				game.actors = append(game.actors, newActor)
 				game.grid[i][j] = nextID
@@ -117,14 +133,14 @@ func (g *gameboard) round() {
 			for _, loc := range targets {
 				if loc.Col == order[x].Position.Col && loc.Row == order[x].Position.Row {
 					inRange = true
-					fmt.Printf("...In range, no move needed\n")
+					println("...In range, no move needed")
 					break
 				}
 			}
 			if !inRange {
 				//move
-				pathToBeInRange := g.pathToClosestSpot(order[x].Position, targets)
-				fmt.Printf("...Actor %d has path to target %v \n", order[x].actorID, pathToBeInRange)
+				pathToBeInRange := g.pathToClosestSpots(order[x].Position, targets)
+				//fmt.Printf("...Actor %d has path to target %v \n", order[x].actorID, pathToBeInRange)
 
 				//pathToBeInRange always starts with current position
 				if pathToBeInRange != nil {
@@ -132,33 +148,37 @@ func (g *gameboard) round() {
 					g.move(order[x].actorID, pathToBeInRange[1])
 					if len(pathToBeInRange) == 2 {
 						inRange = true
-						fmt.Printf("...Moved In range\n")
+						println("...Moved In range")
 					}
-
 				}
 			}
 			//combat
-			//Identify in-range target with lowest hp (reading order)
-			//attack
-			//target dead?
+			if inRange {
+				g.attack(order[x].actorID)
+			}
 		}
 	}
 
 	//done
 	g.rounds++
-	fmt.Println("Round ", g.rounds, "done")
+	println("Round ", g.rounds, "done")
 }
 
 func (g *gameboard) targets(mv actorMove) []pos {
 	player := g.actors[mv.actorID]
 	enemies := make([]*actor, 0)
 	for i := 0; i < len(g.actors); i++ {
-		if g.actors[i].Team != player.Team {
+		if g.actors[i].Team != player.Team && !g.actors[i].Dead {
 			enemies = append(enemies, &(g.actors[i]))
 		}
 	}
 
-	fmt.Println(player.Team, player.ID, "at [", player.Row, player.Col, "] has enemies: ", enemies)
+	if len(enemies) == 0 {
+		println("Game over, round incomplete")
+		g.incompleteRound = true
+	}
+
+	println(player.Team, player.ID, "at [", player.Row, player.Col, "] has enemies: ", enemies)
 
 	result := make([]pos, 0)
 
@@ -176,13 +196,13 @@ func (g *gameboard) targets(mv actorMove) []pos {
 			result = append(result, pos{Col: a.Col, Row: a.Row + 1})
 		}
 	}
-	fmt.Println("...Target positions: ", result)
+	println("...Target positions: ", result)
 	return result
 }
 
 func (g *gameboard) move(mover int, destination pos) {
 	actor := g.actors[mover]
-	fmt.Println("...", actor.Team, actor.ID, "moving to", destination)
+	println("...", actor.Team, actor.ID, "moving to", destination)
 	g.grid[actor.Row][actor.Col] = _OpenSpace
 	g.actors[mover].Row = destination.Row
 	g.actors[mover].Col = destination.Col
@@ -190,7 +210,59 @@ func (g *gameboard) move(mover int, destination pos) {
 }
 
 func (g *gameboard) attack(attacker int) {
+	//Identify in-range target with lowest hp (reading order)
+	attackerTeam := g.actors[attacker].Team
+	row := g.actors[attacker].Row
+	col := g.actors[attacker].Col
+	lowestHP := math.MaxInt32
+	target := _OpenSpace
 
+	//top
+	nextSpace := g.grid[row-1][col]
+	target, lowestHP = g.attackCheckTarget(attackerTeam, nextSpace, target, lowestHP)
+
+	//left
+	nextSpace = g.grid[row][col-1]
+	target, lowestHP = g.attackCheckTarget(attackerTeam, nextSpace, target, lowestHP)
+
+	//right
+	nextSpace = g.grid[row][col+1]
+	target, lowestHP = g.attackCheckTarget(attackerTeam, nextSpace, target, lowestHP)
+
+	//bottom
+	nextSpace = g.grid[row+1][col]
+	target, lowestHP = g.attackCheckTarget(attackerTeam, nextSpace, target, lowestHP)
+
+	//attack
+	g.attackDamage(attacker, target)
+}
+
+//Returns Target, HP
+func (g *gameboard) attackCheckTarget(attackerTeam string, nextSpace int, currentTarget int, currentHpThreshold int) (int, int) {
+	if nextSpace != _Wall && nextSpace != _OpenSpace {
+		possibleTarget := g.actors[nextSpace]
+		if !possibleTarget.Dead && possibleTarget.Team != attackerTeam && possibleTarget.HP < currentHpThreshold {
+			return possibleTarget.ID, possibleTarget.HP
+		} else {
+			return currentTarget, currentHpThreshold
+		}
+	} else {
+		return currentTarget, currentHpThreshold
+	}
+}
+
+func (g *gameboard) attackDamage(attacker int, target int) {
+	if target != _OpenSpace && target != _Wall {
+		g.actors[target].HP -= g.actors[attacker].Atp
+		println("...", attacker, "hit", target, "for", g.actors[attacker].Atp, "; remaining:", g.actors[target].HP)
+		if g.actors[target].HP <= 0 {
+			println("...", attacker, "killed", target)
+			g.actors[target].Dead = true
+			g.grid[g.actors[target].Row][g.actors[target].Col] = _OpenSpace
+			g.actors[target].Row = -1
+			g.actors[target].Col = -1
+		}
+	}
 }
 
 func (g *gameboard) determineTurnOrder() []actorMove {
@@ -207,11 +279,36 @@ func (g *gameboard) determineTurnOrder() []actorMove {
 			}
 		}
 	}
-	fmt.Println("order", order)
+	println("order", order)
 	return order
 }
 
-func (g *gameboard) pathToClosestSpot(from pos, to []pos) []pos {
+func (g *gameboard) pathToClosestSpots(from pos, to []pos) []pos {
+	var shortestLen = math.MaxInt32
+	var currentTarget = pos{}
+	var currentPath []pos
+	for _, p := range to {
+		nextPath := g.pathToClosestSpot(from, p)
+		if nextPath != nil {
+			if len(nextPath) < shortestLen {
+				shortestLen = len(nextPath)
+				currentTarget = p
+				currentPath = nextPath
+			} else if len(nextPath) == shortestLen {
+				if p.Row < currentTarget.Row || (p.Row == currentTarget.Row && p.Col < currentTarget.Col) {
+					shortestLen = len(nextPath)
+					currentTarget = p
+					currentPath = nextPath
+				}
+			}
+		}
+	}
+
+	return currentPath
+}
+
+func (g *gameboard) pathToClosestSpot(from pos, to pos) []pos {
+
 	takenPath := make([][]bool, len(g.grid))
 	for i, v := range g.grid {
 		takenPath[i] = make([]bool, len(v))
@@ -224,7 +321,7 @@ func (g *gameboard) pathToClosestSpot(from pos, to []pos) []pos {
 		current := bfsq[0]
 		//fmt.Println("......Evaluating space", current.Next)
 		bfsq = bfsq[1:]
-		if posInList(current.Next, to) {
+		if current.Next.Row == to.Row && current.Next.Col == to.Col {
 			//fmt.Println(".........at target!", current.Next)
 			return append(current.Path, current.Next)
 		}
@@ -285,4 +382,37 @@ func newBfsNode(current pos, prev bfsPos) bfsPos {
 type bfsPos struct {
 	Next pos
 	Path []pos
+}
+
+func (g *gameboard) gameDone() bool {
+	elf := false
+	gob := false
+	for _, a := range g.actors {
+		if !a.Dead && a.Team == "G" {
+			gob = true
+		}
+		if !a.Dead && a.Team == "E" {
+			elf = true
+		}
+	}
+
+	return !(gob && elf)
+}
+
+func (g *gameboard) gameStats() int {
+	fmt.Println("Game done, total rounds", g.rounds)
+	hpTotal := 0
+	for _, a := range g.actors {
+		if !a.Dead {
+			hpTotal += a.HP
+			println(a.Team, a.ID, "; HP:", a.HP)
+		}
+	}
+	fmt.Println("Total HP", hpTotal)
+	fmt.Println("Score", g.rounds, "*", hpTotal, "=", g.rounds*hpTotal)
+	return g.rounds * hpTotal
+}
+
+func println(a ...interface{}) {
+	//fmt.Println(a)
 }
